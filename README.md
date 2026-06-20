@@ -1,6 +1,6 @@
-# project-check
+# encircle-commit-guard
 
-A CLI tool that validates a Node.js/TypeScript project against configurable rules. It checks folder/file structure, detects console statements, runs ESLint, and finds unused imports.
+A CLI tool that automatically validates your Node.js/TypeScript project against configurable rules on every git commit. It checks folder/file structure, detects console statements, runs ESLint, and finds unused imports.
 
 ## What it does
 
@@ -11,40 +11,45 @@ A CLI tool that validates a Node.js/TypeScript project against configurable rule
 
 ## Installation
 
-### Global install
 ```bash
-npm install -g project-check
+npm install --save-dev encircle-commit-guard
 ```
 
-### Or run with npx (no install needed)
-```bash
-npx project-check
-```
+After installation, two things happen automatically:
+1. `check.config.js` is created in your project root with all rules documented
+2. `.git/hooks/pre-commit` is set up — every `git commit` runs the checks automatically
 
 ## Usage
 
-1. Copy `check.config.js` into the root of the project you want to check:
-
 ```bash
-cp node_modules/project-check/check.config.js ./check.config.js
-# or download it directly
+npx commit-guard
 ```
 
-2. Edit `check.config.js` to match your project's expected structure.
-
-3. Run the tool from your project root:
+### Re-create config if deleted
 
 ```bash
-project-check
-# or
-npx project-check
+npx commit-guard init
+```
+
+### Overwrite existing config with a fresh copy
+
+```bash
+npx commit-guard init --force
+```
+
+### Skip the hook in an emergency
+
+```bash
+git commit -m "your message" --no-verify
 ```
 
 The tool exits with code `0` if all checks pass, or `1` if any check fails.
 
-## Config file
+---
 
-Create a `check.config.js` file in the root of the project being checked:
+## Configuration (check.config.js)
+
+The config file is auto-created on install. Open it and uncomment the rules you want. Set any checker to `false` to disable it entirely.
 
 ```js
 module.exports = {
@@ -52,13 +57,13 @@ module.exports = {
 
   structure: {
     required: [
-      'src/app.ts',
-      'src/server.ts',
-      'tsconfig.json',
-      '.env.example',
+      // 'src/app.ts',
+      // 'src/controllers/',
+      // 'tsconfig.json',
     ],
     forbidden: [
-      'src/**/*.js', // no plain JS files in a TS project
+      // 'src/**/*.js',  // no plain JS in a TS project
+      // '.env',         // never commit .env
     ],
   },
 
@@ -78,39 +83,27 @@ module.exports = {
 };
 ```
 
-## Config options
-
-### `root`
-Type: `string`  
-Default: `'.'`
-
-The project root directory, relative to `check.config.js`. Usually `.` when the config is in the project root.
-
 ---
+
+## Config options
 
 ### `structure`
 
-Controls the file/folder structure check.
-
 | Option | Type | Description |
 |---|---|---|
-| `required` | `string[]` | Paths or glob patterns that must exist. Use exact paths like `src/app.ts` or globs like `src/**/*.ts`. |
-| `forbidden` | `string[]` | Glob patterns that must NOT match any files. |
+| `required` | `string[]` | Paths or glob patterns that must exist |
+| `forbidden` | `string[]` | Glob patterns that must NOT match any files |
 
-Set `structure: false` to skip this check entirely.
+Set `structure: false` to skip this check.
 
 ---
 
 ### `consoleLogs`
 
-Controls the console statement detector.
-
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `include` | `string[]` | `['src/**/*.{ts,js}']` | Glob patterns for files to scan. |
-| `exclude` | `string[]` | `['**/*.test.*', '**/*.spec.*']` | Glob patterns for files to skip. |
-
-Detects: `console.log`, `console.warn`, `console.error`, `console.debug`.
+| `include` | `string[]` | `['src/**/*.{ts,js}']` | Files to scan |
+| `exclude` | `string[]` | `['**/*.test.*', '**/*.spec.*']` | Files to skip |
 
 Set `consoleLogs: false` to skip this check.
 
@@ -118,14 +111,12 @@ Set `consoleLogs: false` to skip this check.
 
 ### `eslint`
 
-Runs ESLint using the project's own ESLint configuration.
-
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `extensions` | `string[]` | `['.ts', '.js']` | File extensions to lint. |
-| `patterns` | `string[]` | `['src/**']` | Glob patterns passed to ESLint. |
+| `extensions` | `string[]` | `['.ts', '.js']` | File extensions to lint |
+| `patterns` | `string[]` | `['src/**']` | Glob patterns passed to ESLint |
 
-If no `.eslintrc` is found in the project, the check reports a warning instead of failing.
+Requires `eslint` installed in your project. If no `.eslintrc` is found, the check reports a warning instead of failing.
 
 Set `eslint: false` to skip this check.
 
@@ -133,13 +124,11 @@ Set `eslint: false` to skip this check.
 
 ### `deadImports`
 
-Detects imported symbols that are never used in the file.
-
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `include` | `string[]` | `['src/**/*.{ts,js}']` | Glob patterns for files to scan. |
+| `include` | `string[]` | `['src/**/*.{ts,js}']` | Files to scan |
 
-Handles named imports (`import { X } from '...'`), default imports (`import X from '...'`), and namespace imports (`import * as X from '...'`).
+Handles named imports (`import { X }`), default imports (`import X`), and namespace imports (`import * as X`).
 
 Set `deadImports: false` to skip this check.
 
@@ -148,32 +137,51 @@ Set `deadImports: false` to skip this check.
 ## Example output
 
 ```
-=== project-check results ===
+=== commit-guard results ===
 
 [PASS] STRUCTURE
 
 [FAIL] CONSOLELOGS
-  src/services/user.service.ts:42 - console statement found: console.log('user created', user)
-  src/controllers/auth.controller.ts:17 - console statement found: console.error('auth failed')
+  src/services/user.service.ts:42 - console statement found: console.log(user)
+  src/controllers/auth.controller.ts:17 - console statement found: console.log(token)
 
 [PASS] ESLINT
 
 [FAIL] DEADIMPORTS
-  src/utils/helpers.ts:3 - Unused import: 'formatDate'
+  src/utils/helpers.ts:3 - unused import: formatDate
 
 Summary: 2 checks passed, 2 checks failed, 3 total issues
 ```
 
-## Disabling individual checks
+---
 
-Set any check key to `false` in your config to skip it:
+## Git pre-commit hook
 
-```js
-module.exports = {
-  root: '.',
-  structure: { required: ['src/'], forbidden: [] },
-  consoleLogs: false,   // skip console log check
-  eslint: false,        // skip ESLint
-  deadImports: { include: ['src/**/*.ts'] },
-};
+The hook is installed automatically. To set it up manually:
+
+```bash
+echo "#!/bin/sh" > .git/hooks/pre-commit
+echo "npx commit-guard" >> .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
+
+---
+
+## Updating
+
+```bash
+npm update encircle-commit-guard
+```
+
+Your `check.config.js` is never overwritten on update. If the file was deleted, running `npx commit-guard` will recreate it automatically.
+
+---
+
+## Requirements
+
+- Node.js >= 16.0.0
+- `eslint` (optional — only needed for the ESLint check)
+
+## License
+
+MIT
