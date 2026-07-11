@@ -12,8 +12,21 @@ async function run(config, projectRoot) {
   const results = [];
 
   const checkers = [
+    { key: 'protectedBranches', module: './checkers/protectedBranches' },
+    { key: 'branchNaming', module: './checkers/branchNaming' },
+    { key: 'authorEmail', module: './checkers/authorEmail' },
+    { key: 'secrets', module: './checkers/secrets' },
+    { key: 'lockfileSync', module: './checkers/lockfileSync' },
+    { key: 'mergeConflicts', module: './checkers/mergeConflicts' },
+    { key: 'largeFiles', module: './checkers/largeFiles' },
+    { key: 'jsonYamlSyntax', module: './checkers/jsonYamlSyntax' },
+    { key: 'caseCollision', module: './checkers/caseCollision' },
     { key: 'structure', module: './checkers/structure' },
     { key: 'consoleLogs', module: './checkers/consoleLogs' },
+    { key: 'debuggerStatements', module: './checkers/debuggerStatements' },
+    { key: 'focusedTests', module: './checkers/focusedTests' },
+    { key: 'emptyCatch', module: './checkers/emptyCatch' },
+    { key: 'todoTracker', module: './checkers/todoTracker' },
     { key: 'eslint', module: './checkers/eslintCheck' },
     { key: 'deadImports', module: './checkers/deadImports' },
   ];
