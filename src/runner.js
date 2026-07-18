@@ -2,6 +2,7 @@
 
 const path = require('path');
 const reporter = require('./reporter');
+const { confirmReminders } = require('./reminders');
 
 async function run(config, projectRoot) {
   if (!projectRoot) {
@@ -18,12 +19,14 @@ async function run(config, projectRoot) {
     { key: 'secrets', module: './checkers/secrets' },
     { key: 'lockfileSync', module: './checkers/lockfileSync' },
     { key: 'mergeConflicts', module: './checkers/mergeConflicts' },
+    { key: 'lineEndings', module: './checkers/lineEndings' },
     { key: 'largeFiles', module: './checkers/largeFiles' },
     { key: 'jsonYamlSyntax', module: './checkers/jsonYamlSyntax' },
     { key: 'caseCollision', module: './checkers/caseCollision' },
     { key: 'structure', module: './checkers/structure' },
     { key: 'consoleLogs', module: './checkers/consoleLogs' },
     { key: 'debuggerStatements', module: './checkers/debuggerStatements' },
+    { key: 'hardcodedPaths', module: './checkers/hardcodedPaths' },
     { key: 'focusedTests', module: './checkers/focusedTests' },
     { key: 'emptyCatch', module: './checkers/emptyCatch' },
     { key: 'todoTracker', module: './checkers/todoTracker' },
@@ -63,6 +66,14 @@ async function run(config, projectRoot) {
   reporter.report(results);
 
   const allPassed = results.every((r) => r.passed);
+
+  if (allPassed && config.reminders !== false) {
+    const confirmed = await confirmReminders(config);
+    if (!confirmed) {
+      return false;
+    }
+  }
+
   return allPassed;
 }
 

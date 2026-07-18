@@ -16,6 +16,22 @@ module.exports = {
   // Root of the project to check, relative to this config file
   root: '.',
 
+  // ── REMINDERS ────────────────────────────────────────────────────────────────
+  // A final interactive confirmation prompt for things no automated check
+  // can verify (docs updated? tests run locally?). Only appears once every
+  // other check has already passed AND at least one message is configured
+  // below — with messages empty (the default) this is fully invisible.
+  // Answering anything other than y/yes blocks the commit. In a
+  // non-interactive environment (CI, scripts) it's skipped automatically.
+  // Set to false to disable this check entirely.
+  reminders: {
+    messages: [
+      // 'Did you update the README/docs if needed?',
+      // 'Did you run the test suite locally?',
+      // 'Did you check for hardcoded secrets or config values?',
+    ],
+  },
+
   // ── PROTECTED BRANCHES CHECK ─────────────────────────────────────────────────
   // Blocks commits made directly on these branches (e.g. force people onto
   // feature branches + PRs). Exact names or glob patterns both work.
@@ -97,6 +113,23 @@ module.exports = {
     exclude: ['node_modules/**', '**/*.lock', 'package-lock.json', '**/*.min.js'],
   },
 
+  // ── LINE ENDING CHECK ────────────────────────────────────────────────────────
+  // Flags a file with MIXED line endings (some lines CRLF, others LF) within
+  // itself — almost always an editor partially converting the file, and the
+  // reason a merge/diff sometimes shows a WHOLE file as changed even though
+  // nothing meaningful was edited. Set "enforce" to require one style
+  // repo-wide instead of only catching a mix.
+  // Set to false to disable this check entirely.
+  lineEndings: {
+    exclude: [
+      'node_modules/**',
+      '**/*.lock',
+      'package-lock.json',
+      '**/*.{png,jpg,jpeg,gif,ico,woff,woff2,ttf,eot,pdf,zip}',
+    ],
+    // enforce: 'lf', // or 'crlf' — require this line ending everywhere
+  },
+
   // ── LARGE FILE CHECK ─────────────────────────────────────────────────────────
   // Blocks committing files over a size limit — catches accidentally staged
   // build output, database dumps, videos, zips, etc.
@@ -168,6 +201,19 @@ module.exports = {
   debuggerStatements: {
     include: ['src/**/*.{ts,js,jsx,tsx}'],
     exclude: ['**/*.test.*', '**/*.spec.*'],
+  },
+
+  // ── HARDCODED LOCAL PATH CHECK ────────────────────────────────────────────────
+  // Flags an absolute path from someone's own machine left in source (e.g.
+  // /Users/john/project/config.json, /home/john/..., C:\Users\John\...) —
+  // works for the author, breaks for everyone else. Doc-style examples like
+  // "/Users/yourname/..." and commented-out lines are ignored.
+  // Set to false to disable this check entirely.
+  hardcodedPaths: {
+    include: ['src/**/*.{ts,js,jsx,tsx}'],
+    exclude: ['**/*.test.*', '**/*.spec.*'],
+    // Add your own RegExp objects here to flag additional path shapes:
+    extraPatterns: [],
   },
 
   // ── FOCUSED / SKIPPED TEST CHECK ─────────────────────────────────────────────

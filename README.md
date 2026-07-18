@@ -1,9 +1,10 @@
 # encircle-commit-guard
 
-A CLI tool that automatically validates your Node.js/TypeScript project against configurable rules on every git commit — branch protection, branch naming, author email, secret scanning, commit message quality, lockfile sync, merge conflict markers, large files, JSON/YAML syntax, case-collision filenames, folder/file structure, console/debugger statements, focused/skipped tests, empty catch blocks, TODOs, ESLint, and unused imports.
+A CLI tool that automatically validates your Node.js/TypeScript project against configurable rules on every git commit — branch protection, branch naming, author email, secret scanning, commit message quality, lockfile sync, merge conflict markers, line endings, large files, JSON/YAML syntax, case-collision filenames, hardcoded local paths, folder/file structure, console/debugger statements, focused/skipped tests, empty catch blocks, TODOs, ESLint, and unused imports.
 
 ## What it does
 
+- **Reminders** — an interactive checklist prompt shown once every other check passes; declining it blocks the commit (opt-in, invisible until configured)
 - **Protected branches check** — blocks commits made directly on branches you name (e.g. `main`, `master`)
 - **Branch naming check** — requires new branches to follow a naming convention (e.g. `feature/xyz`)
 - **Author email check** — requires the committer's git email to be on an approved domain (opt-in)
@@ -11,12 +12,14 @@ A CLI tool that automatically validates your Node.js/TypeScript project against 
 - **Commit message check** — validates the commit message itself (length, generic messages, optional Conventional Commits pattern)
 - **Lockfile sync check** — warns if `package.json` dependencies changed but the lockfile wasn't updated to match
 - **Merge conflict marker check** — catches leftover `<<<<<<<`/`=======`/`>>>>>>>` markers from a sloppily-resolved merge
+- **Line ending check** — flags a file with mixed CRLF/LF line endings, the usual cause of a merge showing a whole file as changed
 - **Large file check** — blocks committing files over a size limit
 - **JSON/YAML syntax check** — fails on invalid staged `.json`/`.yml`/`.yaml` files
 - **Case-collision check** — flags a new file whose path differs only by letter case from an existing one
 - **Structure check** — verifies required files/folders exist and forbidden patterns are absent
 - **Console log check** — detects `console.log`, `console.warn`, `console.error`, `console.debug` in source files
 - **Debugger statement check** — detects leftover `debugger;` statements
+- **Hardcoded local path check** — flags an absolute path from someone's own machine left in source (`/Users/john/...`, `/home/john/...`, `C:\Users\John\...`)
 - **Focused/skipped test check** — flags `.only(`/`.skip(` left in test files
 - **Empty catch block check** — flags a `catch` block with nothing inside it
 - **TODO/FIXME tracker** — surfaces lingering `TODO`/`FIXME`/`HACK`/`XXX` comments (informational by default)
@@ -70,6 +73,13 @@ The config file is auto-created on install. Open it and uncomment the rules you 
 module.exports = {
   root: '.', // project root, relative to this config file
 
+  reminders: {
+    messages: [
+      // 'Did you update the README/docs if needed?',
+      // 'Did you run the test suite locally?',
+    ],
+  },
+
   protectedBranches: {
     branches: ['main', 'master'],
   },
@@ -105,6 +115,11 @@ module.exports = {
 
   mergeConflicts: {
     exclude: ['node_modules/**', 'package-lock.json'],
+  },
+
+  lineEndings: {
+    exclude: ['node_modules/**', 'package-lock.json'],
+    // enforce: 'lf', // or 'crlf' — require this line ending everywhere
   },
 
   largeFiles: {
@@ -143,6 +158,11 @@ module.exports = {
     exclude: ['**/*.test.*', '**/*.spec.*'],
   },
 
+  hardcodedPaths: {
+    include: ['src/**/*.{ts,js,jsx,tsx}'],
+    exclude: ['**/*.test.*', '**/*.spec.*'],
+  },
+
   focusedTests: {
     include: ['**/*.{test,spec}.{ts,js,jsx,tsx}'],
     failOnSkip: true,
@@ -177,6 +197,30 @@ module.exports = {
 ---
 
 ## Config options
+
+### `reminders`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `messages` | `string[]` | `[]` | Checklist lines shown before the commit is allowed through |
+
+Unlike every other check, this isn't a pass/fail scan — it's an interactive confirmation. It only appears at all once **every other check has already passed** (no point asking "did you update the docs?" when the commit is already being rejected for a real issue) **and** `messages` has at least one entry. When both are true, it prints the checklist and prompts:
+
+```
+Before you commit, please confirm:
+  [ ] Did you run the test suite locally?
+  [ ] Did you update the README/docs if needed?
+
+Continue with commit? (y/N):
+```
+
+Answering `y`/`yes` lets the commit through; anything else (including just pressing enter) blocks it with "Commit aborted." In a non-interactive environment (CI, scripts, piped input with no real terminal attached) there's nobody to answer the prompt, so it's skipped automatically and the commit proceeds — it won't hang a pipeline waiting for input that will never come.
+
+With `messages` empty (the default), this step is completely invisible — no output, no prompt, no delay.
+
+Set `reminders: false` to skip this step entirely.
+
+---
 
 ### `protectedBranches`
 
@@ -265,6 +309,23 @@ Set `mergeConflicts: false` to skip this check.
 
 ---
 
+### `lineEndings`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `exclude` | `string[]` | `['node_modules/**', '**/*.lock', 'package-lock.json', '**/*.{png,jpg,...}']` | Files to skip |
+| `enforce` | `'lf' \| 'crlf' \| null` | `null` | If set, requires this line ending everywhere, not just a consistent one |
+
+Flags a staged file that has BOTH CRLF and LF line endings mixed within itself — almost always an editor partially converting the file (e.g. someone on Windows saves a file that was previously all-LF, and only some lines get converted). This is the usual cause of "the whole file shows as changed" in a merge or diff, even though nothing meaningful was actually edited — every line looks different because its line-ending byte changed.
+
+By default this only catches a genuine mix within one file; it doesn't force the whole repo onto LF or CRLF (some teams intentionally keep `.bat`/`.ps1` files as CRLF). Set `enforce: 'lf'` (recommended for most cross-platform teams) to also fail any file using CRLF at all.
+
+For a more complete fix than a commit-time check alone, add a `.gitattributes` file with `* text=auto eol=lf` to your repo root — that tells git itself to normalize line endings on checkin/checkout, so the problem can't reappear even before this check runs.
+
+Set `lineEndings: false` to skip this check.
+
+---
+
 ### `largeFiles`
 
 | Option | Type | Default | Description |
@@ -335,6 +396,20 @@ Set `consoleLogs: false` to skip this check.
 Detects `debugger;` used as a statement (e.g. `debugger;`, `if (x) debugger;`). Doesn't flag identifiers like `debuggerFlag` or commented-out lines.
 
 Set `debuggerStatements: false` to skip this check.
+
+---
+
+### `hardcodedPaths`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `include` | `string[]` | `['src/**/*.{ts,js,jsx,tsx}']` | Files to scan |
+| `exclude` | `string[]` | `['**/*.test.*', '**/*.spec.*']` | Files to skip |
+| `extraPatterns` | `RegExp[]` | `[]` | Additional path shapes to flag |
+
+Flags an absolute path from someone's own machine hardcoded into source: `/Users/john/...` (macOS), `/home/john/...` (Linux), or `C:\Users\John\...` (Windows). Each rule requires a real username-shaped segment followed by another path separator, so it won't false-positive on an Express route like `app.get('/Users/:id', ...)` — `:id` isn't a valid username character. Documentation-style examples (`/Users/yourname/...`, `/home/username/...`) and commented-out lines are ignored.
+
+Set `hardcodedPaths: false` to skip this check.
 
 ---
 

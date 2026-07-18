@@ -9,6 +9,14 @@ module.exports = {
   // Root of the project to check, relative to this config file
   root: '.',
 
+  reminders: {
+    messages: [
+      'Did you update README.md if you added/changed a config option?',
+      'Did you test the new checker against both a failing and a passing case?',
+      'Did you check bin/postinstall.js for stray backticks inside the template literal?',
+    ],
+  },
+
   // ── PROTECTED BRANCHES CHECK ─────────────────────────────────────────────────
   // Blocks commits made directly on these branches (e.g. force people onto
   // feature branches + PRs). Exact names or glob patterns both work.
@@ -85,6 +93,15 @@ module.exports = {
     exclude: ['node_modules/**', '**/*.lock', 'package-lock.json', '**/*.min.js'],
   },
 
+  lineEndings: {
+    exclude: [
+      'node_modules/**',
+      '**/*.lock',
+      'package-lock.json',
+      '**/*.{png,jpg,jpeg,gif,ico,woff,woff2,ttf,eot,pdf,zip}',
+    ],
+  },
+
   // ── LARGE FILE CHECK ─────────────────────────────────────────────────────────
   // Blocks committing files over a size limit — catches accidentally staged
   // build output, database dumps, videos, zips, etc.
@@ -145,15 +162,20 @@ module.exports = {
   // Set to false to disable this check entirely.
   consoleLogs: {
     include: ['src/**/*.{ts,js}'],
-    // reporter.js's console.log calls ARE the tool's output, not debug
-    // leftovers — exclude it from this check.
-    exclude: ['**/*.test.*', '**/*.spec.*', 'src/reporter.js'],
+    // reporter.js and reminders.js's console.log calls ARE the tool's
+    // output, not debug leftovers — exclude them from this check.
+    exclude: ['**/*.test.*', '**/*.spec.*', 'src/reporter.js', 'src/reminders.js'],
   },
 
   // ── DEBUGGER STATEMENT CHECK ─────────────────────────────────────────────────
   // Detects leftover "debugger;" statements. Commented-out ones are ignored.
   // Set to false to disable this check entirely.
   debuggerStatements: {
+    include: ['src/**/*.{ts,js,jsx,tsx}'],
+    exclude: ['**/*.test.*', '**/*.spec.*'],
+  },
+
+  hardcodedPaths: {
     include: ['src/**/*.{ts,js,jsx,tsx}'],
     exclude: ['**/*.test.*', '**/*.spec.*'],
   },
